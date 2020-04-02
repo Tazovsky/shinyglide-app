@@ -30,13 +30,26 @@ screens <- list(
   )
 )
 
+
+top_buttons <- list(actionButton("scr1", "Screen 1"), actionButton("scr2", "Screen 2"), actionButton("scr3", "Screen 3"))
+
 for (i in 1:length(screens)) {
   screens[[i]]$attribs$id <- paste0("screen_", i)
+  top_buttons[[i]]$attribs$onclick <- "function() {console.log('>>>>>');}"
 }
 
 screens$custom_controls <- controls
+screens$id <- "glider"
 
-jsCode <- "shinyjs.activeScreen = function(params) {Shiny.setInputValue('activeScreen', $('.glide__slide.glide__slide--active').attr('id'));}"
+jsCode <- "shinyjs.activeScreen = function(params) {
+            Shiny.setInputValue('activeScreen', $('.glide__slide.glide__slide--active').attr('id'));
+          }
+
+          shinyjs.trigger = function() {
+            console.log('<<<<');
+            $('#glider').trigger('custom');
+          }"
+
 
 ui <- dashboardPage(
   dashboardHeader(title = "Example shinyglide app"),
@@ -52,11 +65,22 @@ ui <- dashboardPage(
   dashboardBody(
     tags$head(
       shinyjs::useShinyjs(),
-      shinyjs::extendShinyjs(text = jsCode, functions = "activeScreen")
+      shinyjs::extendShinyjs(text = jsCode, functions = c("activeScreen", "trigger")),
+      # tags$script(HTML(
+      #   '$( "#glider" ).on( "custom", function() {
+      #     console.log(">>>>");
+      #     console.log("id: " + $("#glider > .glide__track > .glide__slides").find("li.glide__slide--active").attr("id"));
+      #   });'
+      # )),
+      # tags$script(src= "trigger.js")
+      includeScript(path = "www/trigger.js")
     ),
     tabItems(
       tabItem(
         tabName = "welcome_page",
+        box(width = 12,
+              top_buttons
+        ),
         box(width = 12,
             do.call(shinyglide::glide, screens)
         )
@@ -79,8 +103,12 @@ server <- function(input, output, session) {
     print(">>>>>> rendering plot")
     hist(rnorm(input$n), main = paste("n =", input$n))
   })
-  observeEvent(input$next_screen_btn, {
+  observeEvent(list(input$next_screen_btn, input$prev_screen_btn), {
     print(">>>>>> clicked next button")
+    js$trigger()
+  })
+  observeEvent(input$activeScreen, {
+    print(sprintf("active screen: %s", input$activeScreen))
   })
 }
 
